@@ -257,6 +257,7 @@ FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:3000")
 
 # Redis endpoint
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+REDIS_TRUST_SELFSIGNED_CERTS = os.environ.get("REDIS_TRUST_SELFSIGNED_CERTS", False)
 
 # django-dramatiq
 # https://github.com/Bogdanp/django_dramatiq
@@ -264,8 +265,13 @@ DRAMATIQ_BROKER = {
     "BROKER": "dramatiq.brokers.redis.RedisBroker",
     "OPTIONS": {
         # Setting redis db to 1 for the MQ storage
-        "url": f"{REDIS_URL}/1?ssl_cert_reqs=none",
-        "ssl_cert_reqs": None,
+        "url": (
+            f"{REDIS_URL}/1"
+            + ("?ssl_cert_reqs=none" if REDIS_TRUST_SELFSIGNED_CERTS else "")
+            if REDIS_TRUST_SELFSIGNED_CERTS
+            else ""
+        ),
+        **({"ssl_cert_reqs": None} if REDIS_TRUST_SELFSIGNED_CERTS else {}),
     },
     "MIDDLEWARE": [
         "dramatiq.middleware.AgeLimit",
@@ -286,9 +292,14 @@ DRAMATIQ_AUTODISCOVER_MODULES = ["tasks", "jobs"]
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"{REDIS_URL}/2?ssl_cert_reqs=none",
+        "LOCATION": (
+            f"{REDIS_URL}/2"
+            + ("?ssl_cert_reqs=none" if REDIS_TRUST_SELFSIGNED_CERTS else "")
+        ),
         "OPTIONS": {
-            "CONNECTION_POOL_KWARGS": {"ssl_cert_reqs": None},
+            "CONNECTION_POOL_KWARGS": (
+                {"ssl_cert_reqs": None} if REDIS_TRUST_SELFSIGNED_CERTS else {}
+            ),
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
     }
